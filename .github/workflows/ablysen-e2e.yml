@@ -1,0 +1,350 @@
+name: Ablysen_E2E Test Automation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 0 * * *'  # Exécute à minuit chaque jour
+
+# Autorisations de niveau supérieur pour tous les jobs
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  checks: write
+  actions: write
+  deployments: write
+  statuses: write
+  issues: write
+  pull-requests: write
+  security-events: write
+
+# Configuration de GitHub Pages au niveau du référentiel
+env:
+  GITHUB_PAGES: true
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  setup:
+    name: 🛠️ Préparation de l'Environnement
+    runs-on: ubuntu-latest
+    outputs:
+      chrome-version: ${{ steps.chrome-version.outputs.version }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: ☕ Configuration JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: 📦 Cache Maven
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: 🖥️ Préparation de l'Environnement de Test
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        echo "export DISPLAY=:99" >> ~/.bashrc
+        source ~/.bashrc
+    
+    - name: 🌐 Installation de Chrome
+      uses: browser-actions/setup-chrome@latest
+      with:
+        chrome-version: stable
+    
+    - name: 🚗 Installation de ChromeDriver
+      uses: nanasess/setup-chromedriver@master
+    
+    - name: ℹ️ Vérification de la Version Chrome
+      id: chrome-version
+      run: |
+        version=$(google-chrome --version | cut -d ' ' -f 3)
+        echo "version=$version" >> $GITHUB_OUTPUT
+        echo "Chrome Version: $version"
+        chromedriver --version
+
+  test:
+    name: 🧪 Exécution des Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: ☕ Installation JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: 🖥️ Préparation de l'Environnement de Test
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        echo "export DISPLAY=:99" >> ~/.bashrc
+        source ~/.bashrc
+    
+    - name: 🌐 Installation de Chrome
+      uses: browser-actions/setup-chrome@latest
+      with:
+        chrome-version: stable
+    
+    - name: 🚗 Installation de ChromeDriver
+      uses: nanasess/setup-chromedriver@master
+    
+    - name: 📊 Installation d'Allure
+      run: |
+        curl -o allure-2.24.0.tgz -OL https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/2.24.0/allure-commandline-2.24.0.tgz
+        sudo tar -zxvf allure-2.24.0.tgz -C /opt/
+        sudo ln -s /opt/allure-2.24.0/bin/allure /usr/bin/allure
+        allure --version
+    
+    - name: 🚀 Exécuter les Tests
+      env:
+        DISPLAY: :99
+        ALLURE_RESULTS_DIR: target/allure-results
+      run: |
+        echo "Heure de début du test: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "Environnement de test: Ubuntu-latest"
+        echo "Version Java: $(java -version 2>&1 | head -n 1)"
+        echo "Version Chrome: ${{ needs.setup.outputs.chrome-version }}"
+        
+        # Exécution des tests
+        mvn clean test \
+        -Dmaven.test.failure.ignore=true \
+        -Dallure.results.directory=${ALLURE_RESULTS_DIR} \
+        -Dallure.link.tms.pattern=https://example.com/tms/{} \
+        -Dallure.link.issue.pattern=https://github.com/${{ github.repository }}/issues/{} \
+        -Dallure.report.clean=true \
+        -Dallure.results.directory=${ALLURE_RESULTS_DIR}
+        
+        echo "Heure de fin du test: $(date '+%Y-%m-%d %H:%M:%S')"
+      continue-on-error: true
+    
+    - name: 📈 Générer le Rapport Allure
+      if: always()
+      run: |
+        # Ajouter les informations d'exécution
+        echo '{
+          "name": "GitHub Actions",
+          "type": "github",
+          "reportName": "Rapport de Test Ablysen",
+          "buildName": "Build #${{ github.run_number }}",
+          "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+          "reportUrl": "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}",
+          "buildOrder": "${{ github.run_number }}",
+          "timestamp": "'$(date +%s%3N)'"
+        }' > target/allure-results/executor.json
+        
+        # Ajouter les informations d'environnement
+        echo '{
+          "name": "test",
+          "values": [
+            { "name": "OS", "value": "Ubuntu-latest" },
+            { "name": "Browser", "value": "Chrome ${{ needs.setup.outputs.chrome-version }}" },
+            { "name": "Java", "value": "21" },
+            { "name": "Branch", "value": "${{ github.ref_name }}" },
+            { "name": "Commit", "value": "${{ github.sha }}" }
+          ]
+        }' > target/allure-results/categories.json
+        
+        # Ajouter les propriétés d'environnement
+        echo '{
+          "Browser": "Chrome ${{ needs.setup.outputs.chrome-version }}",
+          "Browser.Version": "${{ needs.setup.outputs.chrome-version }}",
+          "Java.Version": "21",
+          "OS": "Ubuntu-latest",
+          "Branch": "${{ github.ref_name }}",
+          "Commit": "${{ github.sha }}",
+          "Test Runner": "TestNG",
+          "Build": "#${{ github.run_number }}"
+        }' > target/allure-results/environment.properties
+        
+        # Générer le rapport
+        allure generate ${ALLURE_RESULTS_DIR} --clean -o target/site/allure-maven-plugin
+        
+        echo "Rapport Allure généré:"
+        ls -la target/site/allure-maven-plugin/
+    
+    - name: 📦 Télécharger les Résultats des Tests
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          target/
+        retention-days: 30
+
+  report:
+    name: 📊 Génération du Rapport
+    needs: [setup, test]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: 📥 Télécharger les Résultats des Tests
+      uses: actions/download-artifact@v4
+      with:
+        name: test-results
+        path: target
+    
+    - name: 📊 Installation d'Allure
+      run: |
+        curl -o allure-2.24.0.tgz -OL https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/2.24.0/allure-commandline-2.24.0.tgz
+        sudo tar -zxvf allure-2.24.0.tgz -C /opt/
+        sudo ln -s /opt/allure-2.24.0/bin/allure /usr/bin/allure
+        allure --version
+    
+    - name: 📈 Générer le Rapport Allure
+      run: |
+        allure generate target/allure-results --clean -o target/site/allure-maven-plugin
+        echo "Rapport Allure généré:"
+        ls -la target/site/allure-maven-plugin/
+    
+    - name: 📜 Télécharger les Rapports de Test
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-reports
+        path: |
+          target/site/allure-maven-plugin/
+        retention-days: 30
+    
+    - name: 📝 Résumé des Tests
+      run: |
+        echo "# 🚀 Rapport d'Exécution des Tests" >> $GITHUB_STEP_SUMMARY
+        echo "## 📊 Résultats des Tests" >> $GITHUB_STEP_SUMMARY
+        echo "| Métrique | Valeur |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| 🏗️ Numéro de Build | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| 📅 Date | $(date '+%Y-%m-%d %H:%M:%S') |" >> $GITHUB_STEP_SUMMARY
+        echo "| 🌿 Branche | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| 📌 Commit | ${GITHUB_SHA::7} |" >> $GITHUB_STEP_SUMMARY
+        echo "| 👤 Déclencheur | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Statistiques des Tests" >> $GITHUB_STEP_SUMMARY
+        echo "| État | Nombre |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|------|" >> $GITHUB_STEP_SUMMARY
+        echo "| ✅ Réussis | $(grep -c "status='PASS'" target/surefire-reports/testng-results.xml || echo 0) |" >> $GITHUB_STEP_SUMMARY
+        echo "| ❌ Échoués | $(grep -c "status='FAIL'" target/surefire-reports/testng-results.xml || echo 0) |" >> $GITHUB_STEP_SUMMARY
+        echo "| ⏭️ Ignorés | $(grep -c "status='SKIP'" target/surefire-reports/testng-results.xml || echo 0) |" >> $GITHUB_STEP_SUMMARY
+
+  pages:
+    name: 🌐 GitHub Pages
+    needs: report
+    runs-on: ubuntu-latest
+    if: always()
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    permissions:
+      pages: write
+      id-token: write
+      contents: write
+      deployments: write
+    
+    steps:
+    - name: 🔄 Checkout du Dépôt
+      uses: actions/checkout@v4
+    
+    - name: 📥 Télécharger les Rapports de Test
+      uses: actions/download-artifact@v4
+      with:
+        name: test-reports
+        path: target/site/allure-maven-plugin
+    
+    - name: 📂 Lister les Fichiers
+      run: |
+        echo "Contenu du répertoire actuel:"
+        ls -la
+        echo "Contenu du répertoire target:"
+        ls -la target/site/allure-maven-plugin || echo "Répertoire target non trouvé"
+    
+    - name: 🔧 Configuration des Pages
+      id: pages
+      uses: actions/configure-pages@v4
+      with:
+        enablement: true
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📤 Télécharger l'Artefact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: target/site/allure-maven-plugin
+        retention-days: 30
+
+  deploy:
+    name: 🚀 Publication du Rapport
+    needs: pages
+    runs-on: ubuntu-latest
+    if: always()
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    permissions:
+      pages: write
+      id-token: write
+      deployments: write
+      statuses: write
+    
+    steps:
+    - name: 🌐 Déployer sur GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        path: target/site/allure-maven-plugin
+
+    - name: ✅ Vérifier le Déploiement
+      if: success()
+      run: |
+        echo "Déploiement réussi!"
+        echo "URL du Rapport: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+        
+    - name: ❌ État du Déploiement
+      if: failure()
+      run: |
+        echo "Échec du déploiement!"
+        echo "Détails de l'erreur:"
+        echo "- État du job: ${{ job.status }}"
+        echo "- État du job précédent: ${{ needs.pages.result }}"
+
+  notify:
+    name: 📢 Envoi des Notifications
+    needs: [test, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: 📋 Vérification de l'État
+      run: |
+        if [[ "${{ needs.test.result }}" == "success" ]]; then
+          echo "## ✅ Tests Terminés avec Succès" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ❌ Erreur de Test Détectée" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+          echo "## 🌐 Rapport Publié avec Succès" >> $GITHUB_STEP_SUMMARY
+          echo "📊 [Rapport Allure](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }})" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ⚠️ Erreur de Publication du Rapport" >> $GITHUB_STEP_SUMMARY
+        fi 
