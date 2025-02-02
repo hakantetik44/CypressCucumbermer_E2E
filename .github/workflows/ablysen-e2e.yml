@@ -40,31 +40,9 @@ jobs:
       with:
         node-version: '20'
 
-    - name: 📦 Vérifier package.json
-      run: |
-        if [ ! -f package.json ]; then
-          echo '{
-            "name": "ablysen-e2e",
-            "version": "1.0.0",
-            "description": "Ablysen E2E Tests with Cypress",
-            "scripts": {
-              "test": "cypress run",
-              "cypress:open": "cypress open",
-              "report": "node cucumber-html-report.js"
-            },
-            "dependencies": {
-              "cypress": "^13.6.6",
-              "@badeball/cypress-cucumber-preprocessor": "^20.0.1",
-              "@bahmutov/cypress-esbuild-preprocessor": "^2.2.0",
-              "multiple-cucumber-html-reporter": "^3.6.1"
-            }
-          }' > package.json
-        fi
-
     - name: 📥 Installer les Dépendances
       run: |
-        npm install -g multiple-cucumber-html-reporter
-        npm install
+        npm install cypress@13.6.6 @badeball/cypress-cucumber-preprocessor@20.0.1 @bahmutov/cypress-esbuild-preprocessor@2.2.0 multiple-cucumber-html-reporter@3.6.1
         npx cypress verify
 
     - name: 🌐 Installer Chrome
@@ -79,9 +57,12 @@ jobs:
         npx cypress run --browser chrome
       continue-on-error: true
 
-    - name: 📝 Créer le Script de Rapport
+    - name: 📊 Générer le Rapport HTML
+      if: always()
       run: |
-        echo 'const report = require("multiple-cucumber-html-reporter");
+        mkdir -p cypress/reports/html
+        node -e '
+        const report = require("multiple-cucumber-html-reporter");
         report.generate({
           jsonDir: "cypress/reports/json",
           reportPath: "cypress/reports/html",
@@ -97,13 +78,7 @@ jobs:
               { label: "Date d'"'"'Exécution", value: new Date().toISOString() }
             ]
           }
-        });' > cucumber-html-report.js
-
-    - name: 📊 Générer le Rapport HTML
-      if: always()
-      run: |
-        mkdir -p cypress/reports/html
-        npm run report
+        });'
 
     - name: 📊 Télécharger les Rapports de Test
       if: always()
