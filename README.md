@@ -12,3 +12,59 @@
 </div>
 
 [... önceki README içeriğinin devamı ...] # CypressCucumbermer_E2E
+
+## ✨ Fonctionnalités
+
+- 🔄 **Page Object Model (POM)**
+- 📝 **Tests en Français**
+- 🎥 **Enregistrement Vidéo**
+- 📊 **Rapports Détaillés**
+- 🔄 **Réessais Automatiques**
+- 🖼️ **Captures d'Écran Automatiques**
+
+---
+
+<div align="center">
+
+### 🌟 Exemple de Scénario de Test
+
+</div>
+
+## 🐛 Dépannage
+
+### Problèmes Courants
+
+1. **Erreur de Timeout**
+   ```bash
+   # Augmenter le timeout dans cypress.config.js
+   defaultCommandTimeout: 10000
+   ```
+
+2. **Échec de Screenshots**
+   ```bash
+   # Vérifier les permissions du dossier
+   chmod -R 777 cypress/screenshots
+   ```
+
+3. **Problèmes de Vidéo**
+   ```bash
+   # Nettoyer le cache
+   npm run cy:clean
+   ```
+
+---
+
+<div align="center">
+
+## 👥 Support & Contact
+
+Pour toute question ou assistance :
+- 📧 Email: qa@abylsen.com
+- 💬 Slack: #qa-automation
+- 📝 Wiki: [Documentation Interne](https://wiki.abylsen.com)
+
+<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Gear.png" width="60" />
+
+### 🌟 Développé avec ❤️ pour Abylsen 🌟
+
+</div>
