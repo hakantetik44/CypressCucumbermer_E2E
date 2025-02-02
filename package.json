@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "pretest": "rm -rf cypress/reports cypress/screenshots cypress/videos",
+    "cy:run": "cypress run --reporter cypress-mochawesome-reporter",
+    "test": "npm run pretest && npm run cy:run && open cypress/reports/html/index.html || xdg-open cypress/reports/html/index.html"
+  },
+  "devDependencies": {
+    "@badeball/cypress-cucumber-preprocessor": "^22.0.0",
+    "@bahmutov/cypress-esbuild-preprocessor": "^2.2.4",
+    "cypress": "^14.0.1",
+    "cypress-mochawesome-reporter": "^3.8.1",
+    "cypress-plugin-steps": "^1.1.1"
+  },
+  "cypress-cucumber-preprocessor": {
+    "stepDefinitions": ["cypress/e2e/step_definitions/**/*.js"]
+  }
+}

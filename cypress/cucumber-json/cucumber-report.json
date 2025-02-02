@@ -1,0 +1,98 @@
+[
+  {
+    "description": "    En tant qu'utilisateur\n    Je veux accéder à la page Automobile\n    Afin de vérifier le contenu",
+    "elements": [
+      {
+        "description": "",
+        "id": "vérification-de-la-page-automobile;vérifier-le-contenu-de-la-page-automobile",
+        "keyword": "Scenario",
+        "line": 8,
+        "name": "Vérifier le contenu de la page Automobile",
+        "steps": [
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 9,
+            "name": "Je suis sur la page d'accueil d'Abylsen",
+            "match": {
+              "location": "not available:0"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 3893000000
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 10,
+            "name": "Je clique sur \"Nos territoires d'innovation\"",
+            "match": {
+              "location": "not available:0"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2352000000
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 11,
+            "name": "Je clique sur \"Automobile\"",
+            "match": {
+              "location": "not available:0"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1184000000
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 12,
+            "name": "Je dois voir le texte \"Le contexte\"",
+            "match": {
+              "location": "not available:0"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 55000000
+            }
+          }
+        ],
+        "tags": [
+          {
+            "name": "@regression",
+            "line": 1
+          },
+          {
+            "name": "@smoke",
+            "line": 1
+          },
+          {
+            "name": "@critical",
+            "line": 7
+          }
+        ],
+        "type": "scenario"
+      }
+    ],
+    "id": "vérification-de-la-page-automobile",
+    "line": 2,
+    "keyword": "Feature",
+    "name": "Vérification de la page Automobile",
+    "tags": [
+      {
+        "name": "@regression",
+        "line": 1
+      },
+      {
+        "name": "@smoke",
+        "line": 1
+      }
+    ],
+    "uri": "cypress/e2e/features/automobile.feature"
+  }
+]

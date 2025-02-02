@@ -1,0 +1,13 @@
+{
+  "json": {
+    "enabled": true,
+    "output": "cypress/cucumber-json/cucumber-report.json"
+  },
+  "messages": {
+    "enabled": true,
+    "output": "cypress/cucumber-json/cucumber-messages.ndjson"
+  },
+  "stepDefinitions": [
+    "cypress/e2e/step_definitions/**/*.js"
+  ]
+} 
