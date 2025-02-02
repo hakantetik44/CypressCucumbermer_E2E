@@ -39,21 +39,31 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'
 
-    - name: 📦 Cache - node_modules
-      uses: actions/cache@v4
-      id: npm-cache
-      with:
-        path: |
-          **/node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+    - name: 📦 Vérifier package.json
+      run: |
+        if [ ! -f package.json ]; then
+          echo '{
+            "name": "ablysen-e2e",
+            "version": "1.0.0",
+            "description": "Ablysen E2E Tests with Cypress",
+            "scripts": {
+              "test": "cypress run",
+              "cypress:open": "cypress open"
+            },
+            "dependencies": {
+              "cypress": "^13.6.6",
+              "@badeball/cypress-cucumber-preprocessor": "^20.0.1",
+              "@bahmutov/cypress-esbuild-preprocessor": "^2.2.0",
+              "multiple-cucumber-html-reporter": "^3.6.1"
+            }
+          }' > package.json
+        fi
 
     - name: 📥 Installer les Dépendances
-      if: steps.npm-cache.outputs.cache-hit != 'true'
-      run: npm ci
+      run: |
+        npm install
+        npx cypress verify
 
     - name: 🌐 Installer Chrome
       uses: browser-actions/setup-chrome@latest
@@ -63,8 +73,32 @@ jobs:
     - name: 🧪 Exécuter les Tests Cypress
       run: |
         echo "Heure de début des tests: $(date '+%Y-%m-%d %H:%M:%S')"
+        mkdir -p cypress/reports/json
         npx cypress run --browser chrome
       continue-on-error: true
+
+    - name: 📊 Générer le Rapport HTML
+      if: always()
+      run: |
+        mkdir -p cypress/reports/html
+        node -e '
+        const report = require("multiple-cucumber-html-reporter");
+        report.generate({
+          jsonDir: "cypress/reports/json",
+          reportPath: "cypress/reports/html",
+          metadata: {
+            browser: { name: "chrome", version: "latest" },
+            device: "GitHub Actions VM",
+            platform: { name: "ubuntu", version: "latest" }
+          },
+          customData: {
+            title: "Informations d'"'"'Exécution",
+            data: [
+              { label: "Projet", value: "Ablysen E2E" },
+              { label: "Date d'"'"'Exécution", value: new Date().toISOString() }
+            ]
+          }
+        });'
 
     - name: 📊 Télécharger les Rapports de Test
       if: always()
@@ -72,7 +106,7 @@ jobs:
       with:
         name: cypress-reports
         path: |
-          cypress/reports
+          cypress/reports/html
           cypress/screenshots
           cypress/videos
         retention-days: 30
@@ -96,33 +130,22 @@ jobs:
 
     - name: 📝 Créer index.html
       run: |
+        mkdir -p cypress-reports
         echo '<!DOCTYPE html>
         <html>
         <head>
             <title>Rapport de Tests Cypress - Ablysen</title>
+            <meta charset="UTF-8">
+            <meta http-equiv="refresh" content="0;url=./html/index.html">
             <style>
                 body { font-family: Arial, sans-serif; margin: 40px; }
                 h1 { color: #2c3e50; }
-                .section { margin: 20px 0; }
-                .section h2 { color: #34495e; }
-                a { color: #3498db; text-decoration: none; }
-                a:hover { text-decoration: underline; }
+                p { color: #34495e; }
             </style>
         </head>
         <body>
-            <h1>Rapport de Tests Cypress - Ablysen</h1>
-            <div class="section">
-                <h2>Résultats des Tests</h2>
-                <ul>
-                    <li><a href="./reports/">Rapports Détaillés</a></li>
-                    <li><a href="./screenshots/">Captures d'"'"'écran</a></li>
-                    <li><a href="./videos/">Vidéos des Tests</a></li>
-                </ul>
-            </div>
-            <div class="section">
-                <h2>Dernière Exécution</h2>
-                <p>Date: '"$(date '+%Y-%m-%d %H:%M:%S')"'</p>
-            </div>
+            <h1>Redirection vers le Rapport de Tests</h1>
+            <p>Si vous n'"'"'êtes pas redirigé automatiquement, <a href="./html/index.html">cliquez ici</a>.</p>
         </body>
         </html>' > cypress-reports/index.html
 
