@@ -49,7 +49,8 @@ jobs:
             "description": "Ablysen E2E Tests with Cypress",
             "scripts": {
               "test": "cypress run",
-              "cypress:open": "cypress open"
+              "cypress:open": "cypress open",
+              "report": "node cucumber-html-report.js"
             },
             "dependencies": {
               "cypress": "^13.6.6",
@@ -62,6 +63,7 @@ jobs:
 
     - name: 📥 Installer les Dépendances
       run: |
+        npm install -g multiple-cucumber-html-reporter
         npm install
         npx cypress verify
 
@@ -77,12 +79,9 @@ jobs:
         npx cypress run --browser chrome
       continue-on-error: true
 
-    - name: 📊 Générer le Rapport HTML
-      if: always()
+    - name: 📝 Créer le Script de Rapport
       run: |
-        mkdir -p cypress/reports/html
-        node -e '
-        const report = require("multiple-cucumber-html-reporter");
+        echo 'const report = require("multiple-cucumber-html-reporter");
         report.generate({
           jsonDir: "cypress/reports/json",
           reportPath: "cypress/reports/html",
@@ -98,7 +97,13 @@ jobs:
               { label: "Date d'"'"'Exécution", value: new Date().toISOString() }
             ]
           }
-        });'
+        });' > cucumber-html-report.js
+
+    - name: 📊 Générer le Rapport HTML
+      if: always()
+      run: |
+        mkdir -p cypress/reports/html
+        npm run report
 
     - name: 📊 Télécharger les Rapports de Test
       if: always()
