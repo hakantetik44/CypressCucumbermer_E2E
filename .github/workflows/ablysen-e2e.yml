@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ main, master ]
   schedule:
-    - cron: '0 0 * * *'  # Her gece yarısı çalışır
+    - cron: '0 0 * * *'  # Exécute à minuit chaque jour
 
 # Autorisations de niveau supérieur pour tous les jobs
 permissions:
@@ -28,20 +28,20 @@ env:
 
 jobs:
   cypress-run:
-    name: 🧪 Cypress Testleri
+    name: 🧪 Tests Cypress
     runs-on: ubuntu-latest
     
     steps:
-    - name: 📥 Kodu İndir
+    - name: 📥 Télécharger le Code
       uses: actions/checkout@v4
 
-    - name: 🟢 Node.js Kur
+    - name: 🟢 Configurer Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
 
-    - name: 📦 Önbellek - node_modules
+    - name: 📦 Cache - node_modules
       uses: actions/cache@v4
       id: npm-cache
       with:
@@ -51,22 +51,22 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-node-
 
-    - name: 📥 Bağımlılıkları Yükle
+    - name: 📥 Installer les Dépendances
       if: steps.npm-cache.outputs.cache-hit != 'true'
       run: npm ci
 
-    - name: 🌐 Chrome Kur
+    - name: 🌐 Installer Chrome
       uses: browser-actions/setup-chrome@latest
       with:
         chrome-version: stable
 
-    - name: 🧪 Cypress Testlerini Çalıştır
+    - name: 🧪 Exécuter les Tests Cypress
       run: |
-        echo "Test başlangıç zamanı: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "Heure de début des tests: $(date '+%Y-%m-%d %H:%M:%S')"
         npx cypress run --browser chrome
       continue-on-error: true
 
-    - name: 📊 Test Raporlarını Yükle
+    - name: 📊 Télécharger les Rapports de Test
       if: always()
       uses: actions/upload-artifact@v4
       with:
@@ -88,42 +88,74 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
-    - name: 📥 Test Raporlarını İndir
+    - name: 📥 Télécharger les Rapports de Test
       uses: actions/download-artifact@v4
       with:
         name: cypress-reports
         path: cypress-reports
 
-    - name: 🔧 GitHub Pages Yapılandırması
+    - name: 📝 Créer index.html
+      run: |
+        echo '<!DOCTYPE html>
+        <html>
+        <head>
+            <title>Rapport de Tests Cypress - Ablysen</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                h1 { color: #2c3e50; }
+                .section { margin: 20px 0; }
+                .section h2 { color: #34495e; }
+                a { color: #3498db; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <h1>Rapport de Tests Cypress - Ablysen</h1>
+            <div class="section">
+                <h2>Résultats des Tests</h2>
+                <ul>
+                    <li><a href="./reports/">Rapports Détaillés</a></li>
+                    <li><a href="./screenshots/">Captures d'"'"'écran</a></li>
+                    <li><a href="./videos/">Vidéos des Tests</a></li>
+                </ul>
+            </div>
+            <div class="section">
+                <h2>Dernière Exécution</h2>
+                <p>Date: '"$(date '+%Y-%m-%d %H:%M:%S')"'</p>
+            </div>
+        </body>
+        </html>' > cypress-reports/index.html
+
+    - name: 🔧 Configuration de GitHub Pages
       uses: actions/configure-pages@v4
       
-    - name: 📤 Raporları Yükle
+    - name: 📤 Télécharger les Artefacts
       uses: actions/upload-pages-artifact@v3
       with:
         path: cypress-reports
 
-    - name: 🚀 GitHub Pages'e Dağıt
+    - name: 🚀 Déployer sur GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
 
   notify:
-    name: 📢 Bildirim
+    name: 📢 Notification
     needs: [cypress-run, pages]
     runs-on: ubuntu-latest
     if: always()
     
     steps:
-    - name: 📋 Durum Kontrolü
+    - name: 📋 Vérification du Statut
       run: |
         if [[ "${{ needs.cypress-run.result }}" == "success" ]]; then
-          echo "## ✅ Testler Başarıyla Tamamlandı" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Tests Terminés avec Succès" >> $GITHUB_STEP_SUMMARY
         else
-          echo "## ❌ Test Hatası Tespit Edildi" >> $GITHUB_STEP_SUMMARY
+          echo "## ❌ Erreur de Test Détectée" >> $GITHUB_STEP_SUMMARY
         fi
         
         if [[ "${{ needs.pages.result }}" == "success" ]]; then
-          echo "## 🌐 Rapor Başarıyla Yayınlandı" >> $GITHUB_STEP_SUMMARY
-          echo "📊 [Test Raporu](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }})" >> $GITHUB_STEP_SUMMARY
+          echo "## 🌐 Rapport Publié avec Succès" >> $GITHUB_STEP_SUMMARY
+          echo "📊 [Rapport de Test](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }})" >> $GITHUB_STEP_SUMMARY
         else
-          echo "## ⚠️ Rapor Yayınlama Hatası" >> $GITHUB_STEP_SUMMARY
+          echo "## ⚠️ Erreur de Publication du Rapport" >> $GITHUB_STEP_SUMMARY
         fi 
