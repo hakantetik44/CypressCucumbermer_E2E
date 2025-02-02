@@ -60,11 +60,8 @@ Ce framework de test E2E est spécialement conçu pour automatiser les tests du 
 ## ⚙️ Installation
 
 ```bash
-# Cloner le projet
-git clone https://github.com/hakantetik44/CypressCucumbermer_E2E.git
-
-# Accéder au répertoire
-cd CypressCucumbermer_E2E
+# Nettoyer l'environnement
+rm -rf node_modules package-lock.json cypress/reports cypress/screenshots cypress/videos
 
 # Installer les dépendances
 npm install
@@ -73,9 +70,6 @@ npm install
 ## 🚀 Exécution des Tests
 
 ```bash
-# Nettoyer les rapports précédents
-npm run clean:reports
-
 # Exécuter tous les tests avec rapport
 npm run test
 
