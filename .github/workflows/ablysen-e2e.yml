@@ -45,13 +45,6 @@ jobs:
         npm install cypress@13.6.6 
         npm install @badeball/cypress-cucumber-preprocessor@20.0.1 
         npm install @bahmutov/cypress-esbuild-preprocessor@2.2.0 
-        npm install multiple-cucumber-html-reporter@3.6.1
-        npm install cucumber-html-reporter
-        npm install mocha@10.2.0
-        npm install mochawesome@7.1.3
-        npm install mochawesome-merge@4.3.0
-        npm install mochawesome-report-generator@6.2.0
-        npm install cypress-multi-reporters@1.6.3
         npx cypress verify
 
     - name: 🌐 Installer Chrome
@@ -68,72 +61,75 @@ jobs:
           "viewportHeight": 1080,
           "video": true,
           "screenshotOnRunFailure": true,
-          "reporter": "cypress-multi-reporters",
+          "reporter": "spec",
           "reporterOptions": {
-            "reporterEnabled": "mochawesome, mocha-junit-reporter",
-            "mochawesomeReporterOptions": {
-              "reportDir": "cypress/reports/mocha",
-              "quite": true,
-              "overwrite": false,
-              "html": true,
-              "json": true
-            }
-          },
-          "env": {
-            "TAGS": "not @ignore",
-            "cucumber-json": {
-              "enabled": true,
-              "output": "cypress/reports/cucumber/cucumber-report.json"
-            }
+            "toConsole": true
           }
         }' > cypress.json
 
     - name: 🧪 Exécuter les Tests Cypress
       run: |
         echo "Heure de début des tests: $(date '+%Y-%m-%d %H:%M:%S')"
-        mkdir -p cypress/reports/json
-        mkdir -p cypress/reports/cucumber
-        mkdir -p cypress/reports/mocha
-        CYPRESS_REPORT_DIR=cypress/reports/cucumber npx cypress run --browser chrome --reporter cypress-multi-reporters
-        
-        # Fusionner les rapports Mocha
-        npx mochawesome-merge cypress/reports/mocha/*.json > cypress/reports/mocha/output.json
-        npx marge cypress/reports/mocha/output.json --reportDir cypress/reports/mocha --inline
-
-        # Copier le rapport Cucumber JSON
-        if [ -f cypress/cucumber-messages.ndjson ]; then
-          cat cypress/cucumber-messages.ndjson | npx @cucumber/json-formatter > cypress/reports/cucumber/cucumber-report.json
-        fi
+        mkdir -p cypress/reports
+        npx cypress run --browser chrome
       continue-on-error: true
 
-    - name: 📊 Générer les Rapports
+    - name: 📝 Créer le Rapport HTML
       if: always()
       run: |
-        # Générer le rapport Cucumber HTML
-        echo 'const reporter = require("cucumber-html-reporter");
-        const options = {
-          theme: "bootstrap",
-          jsonFile: "cypress/reports/cucumber/cucumber-report.json",
-          output: "cypress/reports/cucumber/cucumber-report.html",
-          reportSuiteAsScenarios: true,
-          scenarioTimestamp: true,
-          launchReport: false,
-          metadata: {
-            "App Version": "1.0.0",
-            "Test Environment": "STAGING",
-            "Browser": "Chrome",
-            "Platform": "Ubuntu-Latest",
-            "Executed": "Remote"
-          }
-        };
-        reporter.generate(options);' > cucumber-report.js
-        
-        if [ -f cypress/reports/cucumber/cucumber-report.json ]; then
-          node cucumber-report.js
-        else
-          echo "Aucun rapport Cucumber JSON trouvé"
-          cp cypress/reports/mocha/output.html cypress/reports/cucumber/cucumber-report.html
-        fi
+        echo '<!DOCTYPE html>
+        <html>
+        <head>
+            <title>Rapport de Tests Cypress - Ablysen</title>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                h1, h2 { color: #2c3e50; }
+                .video-container { margin: 20px 0; }
+                .screenshot-container { margin: 20px 0; }
+                .video-item, .screenshot-item {
+                    margin: 10px 0;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Rapport de Tests Cypress - Ablysen</h1>
+            <p>Date d'"'"'exécution: '"$(date '+%Y-%m-%d %H:%M:%S')"'</p>
+            
+            <h2>Vidéos des Tests</h2>
+            <div class="video-container">
+                '"$(for video in cypress/videos/*.mp4; do
+                    if [ -f "$video" ]; then
+                        filename=$(basename "$video")
+                        echo "<div class='video-item'>"
+                        echo "<h3>$filename</h3>"
+                        echo "<video width='100%' controls>"
+                        echo "<source src='./videos/$filename' type='video/mp4'>"
+                        echo "Votre navigateur ne supporte pas la lecture vidéo."
+                        echo "</video>"
+                        echo "</div>"
+                    fi
+                done)"'
+            </div>
+            
+            <h2>Captures d'"'"'écran</h2>
+            <div class="screenshot-container">
+                '"$(for screenshot in cypress/screenshots/**/*.png; do
+                    if [ -f "$screenshot" ]; then
+                        filename=$(basename "$screenshot")
+                        dir=$(basename $(dirname "$screenshot"))
+                        echo "<div class='screenshot-item'>"
+                        echo "<h3>$dir - $filename</h3>"
+                        echo "<img src='./screenshots/$dir/$filename' style='max-width: 100%;'>"
+                        echo "</div>"
+                    fi
+                done)"'
+            </div>
+        </body>
+        </html>' > cypress/reports/index.html
 
     - name: 📊 Télécharger les Rapports de Test
       if: always()
@@ -141,8 +137,7 @@ jobs:
       with:
         name: cypress-reports
         path: |
-          cypress/reports/cucumber
-          cypress/reports/mocha
+          cypress/reports
           cypress/screenshots
           cypress/videos
         retention-days: 30
@@ -163,15 +158,6 @@ jobs:
       with:
         name: cypress-reports
         path: cypress-reports
-
-    - name: 📝 Créer index.html
-      run: |
-        mkdir -p cypress-reports
-        if [ -f cypress-reports/cucumber/cucumber-report.html ]; then
-          cp cypress-reports/cucumber/cucumber-report.html cypress-reports/index.html
-        else
-          cp cypress-reports/mocha/output.html cypress-reports/index.html
-        fi
 
     - name: 🔧 Configuration de GitHub Pages
       uses: actions/configure-pages@v4
