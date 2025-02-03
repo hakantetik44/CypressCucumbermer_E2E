@@ -30,15 +30,13 @@ jobs:
   cypress-run:
     name: 🧪 Tests Cypress
     runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:node-20.9.0-chrome-118.0.5993.88-1-ff-118.0.2-edge-118.0.2088.46-1
+      options: --user 1001
     
     steps:
     - name: 📥 Télécharger le Code
       uses: actions/checkout@v4
-
-    - name: 🟢 Configurer Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
 
     - name: 📥 Installer les Dépendances
       run: |
@@ -47,31 +45,33 @@ jobs:
         npm install @bahmutov/cypress-esbuild-preprocessor@2.2.0 
         npx cypress verify
 
-    - name: 🌐 Installer Chrome
-      uses: browser-actions/setup-chrome@latest
-      with:
-        chrome-version: stable
-
     - name: 📝 Configurer Cypress
       run: |
-        echo '{
-          "baseUrl": "https://www.saucedemo.com",
-          "defaultCommandTimeout": 10000,
-          "viewportWidth": 1920,
-          "viewportHeight": 1080,
-          "video": true,
-          "screenshotOnRunFailure": true,
-          "reporter": "spec",
-          "reporterOptions": {
-            "toConsole": true
-          }
-        }' > cypress.json
+        echo 'const { defineConfig } = require("cypress");
+
+        module.exports = defineConfig({
+          e2e: {
+            baseUrl: "https://www.saucedemo.com",
+            defaultCommandTimeout: 10000,
+            viewportWidth: 1920,
+            viewportHeight: 1080,
+            video: true,
+            screenshotOnRunFailure: true,
+            reporter: "spec",
+            reporterOptions: {
+              toConsole: true
+            },
+            setupNodeEvents(on, config) {
+              return require("./cypress/plugins/index.js")(on, config);
+            },
+          },
+        });' > cypress.config.js
 
     - name: 🧪 Exécuter les Tests Cypress
       run: |
         echo "Heure de début des tests: $(date '+%Y-%m-%d %H:%M:%S')"
         mkdir -p cypress/reports
-        npx cypress run --browser chrome
+        CYPRESS_CRASH_REPORTS=0 NO_COLOR=1 npx cypress run --browser chrome
       continue-on-error: true
 
     - name: 📝 Créer le Rapport HTML
@@ -83,50 +83,62 @@ jobs:
             <title>Rapport de Tests Cypress - Ablysen</title>
             <meta charset="UTF-8">
             <style>
-                body { font-family: Arial, sans-serif; margin: 40px; }
+                body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+                .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
                 h1, h2 { color: #2c3e50; }
-                .video-container { margin: 20px 0; }
-                .screenshot-container { margin: 20px 0; }
+                .timestamp { color: #666; font-style: italic; }
+                .video-container, .screenshot-container { margin: 20px 0; }
                 .video-item, .screenshot-item {
-                    margin: 10px 0;
-                    padding: 10px;
+                    margin: 15px 0;
+                    padding: 15px;
+                    background: white;
                     border: 1px solid #ddd;
-                    border-radius: 4px;
+                    border-radius: 8px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
                 }
+                .video-item h3, .screenshot-item h3 { color: #34495e; margin-top: 0; }
+                video, img { max-width: 100%; border-radius: 4px; }
+                .no-items { color: #666; font-style: italic; padding: 10px; }
             </style>
         </head>
         <body>
-            <h1>Rapport de Tests Cypress - Ablysen</h1>
-            <p>Date d'"'"'exécution: '"$(date '+%Y-%m-%d %H:%M:%S')"'</p>
-            
-            <h2>Vidéos des Tests</h2>
-            <div class="video-container">
-                '"$(for video in cypress/videos/*.mp4; do
-                    if [ -f "$video" ]; then
-                        filename=$(basename "$video")
-                        echo "<div class='video-item'>"
-                        echo "<h3>$filename</h3>"
-                        echo "<video width='100%' controls>"
-                        echo "<source src='./videos/$filename' type='video/mp4'>"
-                        echo "Votre navigateur ne supporte pas la lecture vidéo."
-                        echo "</video>"
-                        echo "</div>"
-                    fi
-                done)"'
-            </div>
-            
-            <h2>Captures d'"'"'écran</h2>
-            <div class="screenshot-container">
-                '"$(for screenshot in cypress/screenshots/**/*.png; do
-                    if [ -f "$screenshot" ]; then
-                        filename=$(basename "$screenshot")
-                        dir=$(basename $(dirname "$screenshot"))
-                        echo "<div class='screenshot-item'>"
-                        echo "<h3>$dir - $filename</h3>"
-                        echo "<img src='./screenshots/$dir/$filename' style='max-width: 100%;'>"
-                        echo "</div>"
-                    fi
-                done)"'
+            <div class="container">
+                <h1>Rapport de Tests Cypress - Ablysen</h1>
+                <p class="timestamp">Date d'"'"'exécution: '"$(date '+%Y-%m-%d %H:%M:%S')"'</p>
+                
+                <h2>Vidéos des Tests</h2>
+                <div class="video-container">
+                    '"$(if ls cypress/videos/*.mp4 1> /dev/null 2>&1; then
+                        for video in cypress/videos/*.mp4; do
+                            filename=$(basename "$video")
+                            echo "<div class='video-item'>"
+                            echo "<h3>$filename</h3>"
+                            echo "<video width='100%' controls>"
+                            echo "<source src='./videos/$filename' type='video/mp4'>"
+                            echo "Votre navigateur ne supporte pas la lecture vidéo."
+                            echo "</video>"
+                            echo "</div>"
+                        done
+                    else
+                        echo "<p class='no-items'>Aucune vidéo disponible</p>"
+                    fi)"'
+                </div>
+                
+                <h2>Captures d'"'"'écran</h2>
+                <div class="screenshot-container">
+                    '"$(if ls cypress/screenshots/**/*.png 1> /dev/null 2>&1; then
+                        for screenshot in cypress/screenshots/**/*.png; do
+                            filename=$(basename "$screenshot")
+                            dir=$(basename $(dirname "$screenshot"))
+                            echo "<div class='screenshot-item'>"
+                            echo "<h3>$dir - $filename</h3>"
+                            echo "<img src='./screenshots/$dir/$filename' alt='$filename'>"
+                            echo "</div>"
+                        done
+                    else
+                        echo "<p class='no-items'>Aucune capture d'écran disponible</p>"
+                    fi)"'
+                </div>
             </div>
         </body>
         </html>' > cypress/reports/index.html
