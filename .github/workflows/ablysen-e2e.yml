@@ -40,49 +40,46 @@ jobs:
 
     - name: 📥 Installer les Dépendances
       run: |
-        echo '{
-          "name": "ablysen-e2e",
-          "version": "1.0.0",
-          "description": "Ablysen E2E Tests",
-          "scripts": {
-            "test": "cypress run",
-            "cypress:open": "cypress open"
-          },
-          "dependencies": {
-            "cypress": "^13.6.6",
-            "@badeball/cypress-cucumber-preprocessor": "^20.0.1",
-            "@bahmutov/cypress-esbuild-preprocessor": "^2.2.0"
-          },
-          "cypress-cucumber-preprocessor": {
-            "stepDefinitions": "cypress/e2e/step_definitions/**/*.js",
-            "html": {
-              "enabled": true,
-              "output": "cypress/reports/cucumber/cucumber-report.html"
-            },
-            "messages": {
-              "enabled": true,
-              "output": "cypress/reports/cucumber/cucumber-messages.ndjson"
-            },
-            "json": {
-              "enabled": true,
-              "output": "cypress/reports/cucumber/cucumber-report.json"
-            }
-          }
-        }' > package.json
-        npm install
+        npm install cypress@13.6.6
+        npm install @badeball/cypress-cucumber-preprocessor@latest
+        npm install @bahmutov/cypress-esbuild-preprocessor@latest
+        npm install multiple-cucumber-html-reporter@latest
         npx cypress verify
 
     - name: 📝 Configurer Cypress
       run: |
+        echo '{
+          "baseUrl": "https://www.saucedemo.com",
+          "defaultCommandTimeout": 10000,
+          "viewportWidth": 1920,
+          "viewportHeight": 1080,
+          "video": true,
+          "screenshotOnRunFailure": true,
+          "reporter": "cypress-multi-reporters",
+          "reporterOptions": {
+            "reporterEnabled": "spec, mocha-junit-reporter",
+            "mochaJunitReporterReporterOptions": {
+              "mochaFile": "cypress/reports/junit/results-[hash].xml"
+            }
+          },
+          "env": {
+            "TAGS": "not @ignore"
+          },
+          "retries": {
+            "runMode": 2,
+            "openMode": 0
+          }
+        }' > cypress.json
+
         echo 'const { defineConfig } = require("cypress");
         const createBundler = require("@bahmutov/cypress-esbuild-preprocessor");
-        const { addCucumberPreprocessorPlugin } = require("@badeball/cypress-cucumber-preprocessor");
-        const { createEsbuildPlugin } = require("@badeball/cypress-cucumber-preprocessor/esbuild");
+        const addCucumberPreprocessorPlugin = require("@badeball/cypress-cucumber-preprocessor").addCucumberPreprocessorPlugin;
+        const createEsbuildPlugin = require("@badeball/cypress-cucumber-preprocessor/esbuild").createEsbuildPlugin;
 
         module.exports = defineConfig({
           e2e: {
             specPattern: "cypress/e2e/features/*.feature",
-            supportFile: "cypress/support/e2e.js",
+            supportFile: false,
             baseUrl: "https://www.saucedemo.com",
             defaultCommandTimeout: 10000,
             viewportWidth: 1920,
@@ -90,51 +87,21 @@ jobs:
             video: true,
             screenshotOnRunFailure: true,
             async setupNodeEvents(on, config) {
+              const bundler = createBundler({
+                plugins: [createEsbuildPlugin(config)],
+              });
+              on("file:preprocessor", bundler);
               await addCucumberPreprocessorPlugin(on, config);
-              on(
-                "file:preprocessor",
-                createBundler({
-                  plugins: [createEsbuildPlugin(config)],
-                })
-              );
               return config;
             },
           },
         });' > cypress.config.js
 
-        # Créer le fichier support
-        mkdir -p cypress/support
-        echo '// Import commands.js using ES2015 syntax:
-        import "./commands";
-        
-        // Alternatively you can use CommonJS syntax:
-        // require("./commands")
-        
-        // Hide fetch/XHR requests from command log
-        const app = window.top;
-        if (!app.document.head.querySelector("[data-hide-command-log-request]")) {
-          const style = app.document.createElement("style");
-          style.innerHTML =
-            ".command-name-request, .command-name-xhr { display: none }";
-          style.setAttribute("data-hide-command-log-request", "");
-          app.document.head.appendChild(style);
-        }' > cypress/support/e2e.js
-
-        echo '// ***********************************************
-        // This example commands.js shows you how to
-        // create various custom commands and overwrite
-        // existing commands.
-        //
-        // For more comprehensive examples of custom
-        // commands please read more here:
-        // https://on.cypress.io/custom-commands
-        // ***********************************************' > cypress/support/commands.js
-
     - name: 🧪 Exécuter les Tests Cypress
       run: |
         echo "Heure de début des tests: $(date '+%Y-%m-%d %H:%M:%S')"
         mkdir -p cypress/reports/cucumber
-        CYPRESS_CRASH_REPORTS=0 NO_COLOR=1 npx cypress run --browser chrome
+        CYPRESS_CRASH_REPORTS=0 NO_COLOR=1 npx cypress run --browser chrome --config video=true
       continue-on-error: true
 
     - name: 📝 Créer le Rapport HTML
@@ -144,17 +111,13 @@ jobs:
         mkdir -p public
         mkdir -p public/videos
         mkdir -p public/screenshots
-        mkdir -p public/cucumber
 
-        # Copier les rapports et artefacts
+        # Copier les vidéos et captures d'écran
         if [ -d "cypress/videos" ]; then
           cp -r cypress/videos/* public/videos/ || true
         fi
         if [ -d "cypress/screenshots" ]; then
           cp -r cypress/screenshots/* public/screenshots/ || true
-        fi
-        if [ -d "cypress/reports/cucumber" ]; then
-          cp -r cypress/reports/cucumber/* public/cucumber/ || true
         fi
 
         # Créer index.html
@@ -181,30 +144,12 @@ jobs:
                 .video-item h3, .screenshot-item h3 { color: #34495e; margin-top: 0; }
                 video, img { max-width: 100%; border-radius: 4px; }
                 .no-items { color: #666; font-style: italic; padding: 10px; }
-                .cucumber-report { margin-top: 20px; }
-                .cucumber-report a { 
-                    display: inline-block;
-                    padding: 10px 20px;
-                    background: #3498db;
-                    color: white;
-                    text-decoration: none;
-                    border-radius: 4px;
-                    transition: background 0.3s;
-                }
-                .cucumber-report a:hover {
-                    background: #2980b9;
-                }
             </style>
         </head>
         <body>
             <div class="container">
                 <h1>Rapport de Tests Cypress - Ablysen</h1>
                 <p class="timestamp">Date d'"'"'exécution: '"$(date '+%Y-%m-%d %H:%M:%S')"'</p>
-                
-                <div class="section cucumber-report">
-                    <h2>Rapport Cucumber</h2>
-                    <a href="./cucumber/cucumber-report.html">Voir le Rapport Détaillé</a>
-                </div>
 
                 <div class="section">
                     <h2>Vidéos des Tests</h2>
