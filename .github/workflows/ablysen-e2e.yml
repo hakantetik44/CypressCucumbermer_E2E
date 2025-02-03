@@ -42,7 +42,11 @@ jobs:
 
     - name: 📥 Installer les Dépendances
       run: |
-        npm install cypress@13.6.6 @badeball/cypress-cucumber-preprocessor@20.0.1 @bahmutov/cypress-esbuild-preprocessor@2.2.0 multiple-cucumber-html-reporter@3.6.1
+        npm install cypress@13.6.6 
+        npm install @badeball/cypress-cucumber-preprocessor@20.0.1 
+        npm install @bahmutov/cypress-esbuild-preprocessor@2.2.0 
+        npm install multiple-cucumber-html-reporter@3.6.1
+        npm install cucumber-html-reporter
         npx cypress verify
 
     - name: 🌐 Installer Chrome
@@ -50,35 +54,57 @@ jobs:
       with:
         chrome-version: stable
 
+    - name: 📝 Configurer Cypress
+      run: |
+        echo '{
+          "baseUrl": "https://www.saucedemo.com",
+          "defaultCommandTimeout": 10000,
+          "viewportWidth": 1920,
+          "viewportHeight": 1080,
+          "video": true,
+          "screenshotOnRunFailure": true,
+          "reporter": "cypress-multi-reporters",
+          "reporterOptions": {
+            "reporterEnabled": "mochawesome",
+            "mochawesomeReporterOptions": {
+              "reportDir": "cypress/reports/mocha",
+              "quite": true,
+              "overwrite": false,
+              "html": false,
+              "json": true
+            }
+          }
+        }' > cypress.json
+
     - name: 🧪 Exécuter les Tests Cypress
       run: |
         echo "Heure de début des tests: $(date '+%Y-%m-%d %H:%M:%S')"
         mkdir -p cypress/reports/json
-        npx cypress run --browser chrome
+        mkdir -p cypress/reports/cucumber
+        CYPRESS_REPORT_DIR=cypress/reports/cucumber npx cypress run --browser chrome --reporter cypress-cucumber-preprocessor/reporter
       continue-on-error: true
 
-    - name: 📊 Générer le Rapport HTML
+    - name: 📊 Générer le Rapport Cucumber
       if: always()
       run: |
-        mkdir -p cypress/reports/html
-        node -e '
-        const report = require("multiple-cucumber-html-reporter");
-        report.generate({
-          jsonDir: "cypress/reports/json",
-          reportPath: "cypress/reports/html",
+        echo 'const reporter = require("cucumber-html-reporter");
+        const options = {
+          theme: "bootstrap",
+          jsonFile: "cypress/reports/cucumber/cucumber-report.json",
+          output: "cypress/reports/cucumber/cucumber-report.html",
+          reportSuiteAsScenarios: true,
+          scenarioTimestamp: true,
+          launchReport: false,
           metadata: {
-            browser: { name: "chrome", version: "latest" },
-            device: "GitHub Actions VM",
-            platform: { name: "ubuntu", version: "latest" }
-          },
-          customData: {
-            title: "Informations d'"'"'Exécution",
-            data: [
-              { label: "Projet", value: "Ablysen E2E" },
-              { label: "Date d'"'"'Exécution", value: new Date().toISOString() }
-            ]
+            "App Version": "1.0.0",
+            "Test Environment": "STAGING",
+            "Browser": "Chrome",
+            "Platform": "Ubuntu-Latest",
+            "Executed": "Remote"
           }
-        });'
+        };
+        reporter.generate(options);' > cucumber-report.js
+        node cucumber-report.js
 
     - name: 📊 Télécharger les Rapports de Test
       if: always()
@@ -86,7 +112,7 @@ jobs:
       with:
         name: cypress-reports
         path: |
-          cypress/reports/html
+          cypress/reports/cucumber
           cypress/screenshots
           cypress/videos
         retention-days: 30
@@ -111,23 +137,7 @@ jobs:
     - name: 📝 Créer index.html
       run: |
         mkdir -p cypress-reports
-        echo '<!DOCTYPE html>
-        <html>
-        <head>
-            <title>Rapport de Tests Cypress - Ablysen</title>
-            <meta charset="UTF-8">
-            <meta http-equiv="refresh" content="0;url=./html/index.html">
-            <style>
-                body { font-family: Arial, sans-serif; margin: 40px; }
-                h1 { color: #2c3e50; }
-                p { color: #34495e; }
-            </style>
-        </head>
-        <body>
-            <h1>Redirection vers le Rapport de Tests</h1>
-            <p>Si vous n'"'"'êtes pas redirigé automatiquement, <a href="./html/index.html">cliquez ici</a>.</p>
-        </body>
-        </html>' > cypress-reports/index.html
+        cp cypress-reports/cucumber/cucumber-report.html cypress-reports/index.html
 
     - name: 🔧 Configuration de GitHub Pages
       uses: actions/configure-pages@v4
