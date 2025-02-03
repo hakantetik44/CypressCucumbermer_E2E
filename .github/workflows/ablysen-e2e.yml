@@ -48,29 +48,6 @@ jobs:
 
     - name: 📝 Configurer Cypress
       run: |
-        echo '{
-          "baseUrl": "https://ablysen.com",
-          "defaultCommandTimeout": 10000,
-          "viewportWidth": 1920,
-          "viewportHeight": 1080,
-          "video": true,
-          "screenshotOnRunFailure": true,
-          "reporter": "cypress-multi-reporters",
-          "reporterOptions": {
-            "reporterEnabled": "spec, mocha-junit-reporter",
-            "mochaJunitReporterReporterOptions": {
-              "mochaFile": "cypress/reports/junit/results-[hash].xml"
-            }
-          },
-          "env": {
-            "TAGS": "not @ignore"
-          },
-          "retries": {
-            "runMode": 2,
-            "openMode": 0
-          }
-        }' > cypress.json
-
         echo 'const { defineConfig } = require("cypress");
         const createBundler = require("@bahmutov/cypress-esbuild-preprocessor");
         const addCucumberPreprocessorPlugin = require("@badeball/cypress-cucumber-preprocessor").addCucumberPreprocessorPlugin;
@@ -86,6 +63,20 @@ jobs:
             viewportHeight: 1080,
             video: true,
             screenshotOnRunFailure: true,
+            reporter: "cypress-multi-reporters",
+            reporterOptions: {
+              reporterEnabled: "spec, mocha-junit-reporter",
+              mochaJunitReporterReporterOptions: {
+                mochaFile: "cypress/reports/junit/results-[hash].xml"
+              }
+            },
+            env: {
+              TAGS: "not @ignore"
+            },
+            retries: {
+              runMode: 2,
+              openMode: 0
+            },
             async setupNodeEvents(on, config) {
               const bundler = createBundler({
                 plugins: [createEsbuildPlugin(config)],
