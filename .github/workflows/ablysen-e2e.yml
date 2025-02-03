@@ -49,7 +49,7 @@ jobs:
     - name: 📝 Configurer Cypress
       run: |
         echo '{
-          "baseUrl": "https://www.saucedemo.com",
+          "baseUrl": "https://ablysen.com",
           "defaultCommandTimeout": 10000,
           "viewportWidth": 1920,
           "viewportHeight": 1080,
@@ -80,7 +80,7 @@ jobs:
           e2e: {
             specPattern: "cypress/e2e/features/*.feature",
             supportFile: false,
-            baseUrl: "https://www.saucedemo.com",
+            baseUrl: "https://ablysen.com",
             defaultCommandTimeout: 10000,
             viewportWidth: 1920,
             viewportHeight: 1080,
