@@ -77,6 +77,20 @@ jobs:
     - name: 📝 Créer le Rapport HTML
       if: always()
       run: |
+        # Créer la structure des dossiers
+        mkdir -p public
+        mkdir -p public/videos
+        mkdir -p public/screenshots
+
+        # Copier les vidéos et captures d'écran
+        if [ -d "cypress/videos" ]; then
+          cp -r cypress/videos/* public/videos/ || true
+        fi
+        if [ -d "cypress/screenshots" ]; then
+          cp -r cypress/screenshots/* public/screenshots/ || true
+        fi
+
+        # Créer index.html
         echo '<!DOCTYPE html>
         <html>
         <head>
@@ -108,8 +122,8 @@ jobs:
                 
                 <h2>Vidéos des Tests</h2>
                 <div class="video-container">
-                    '"$(if ls cypress/videos/*.mp4 1> /dev/null 2>&1; then
-                        for video in cypress/videos/*.mp4; do
+                    '"$(if ls public/videos/*.mp4 1> /dev/null 2>&1; then
+                        for video in public/videos/*.mp4; do
                             filename=$(basename "$video")
                             echo "<div class='video-item'>"
                             echo "<h3>$filename</h3>"
@@ -126,8 +140,8 @@ jobs:
                 
                 <h2>Captures d'"'"'écran</h2>
                 <div class="screenshot-container">
-                    '"$(if ls cypress/screenshots/**/*.png 1> /dev/null 2>&1; then
-                        for screenshot in cypress/screenshots/**/*.png; do
+                    '"$(if ls public/screenshots/**/*.png 1> /dev/null 2>&1; then
+                        for screenshot in public/screenshots/**/*.png; do
                             filename=$(basename "$screenshot")
                             dir=$(basename $(dirname "$screenshot"))
                             echo "<div class='screenshot-item'>"
@@ -141,17 +155,14 @@ jobs:
                 </div>
             </div>
         </body>
-        </html>' > cypress/reports/index.html
+        </html>' > public/index.html
 
     - name: 📊 Télécharger les Rapports de Test
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: cypress-reports
-        path: |
-          cypress/reports
-          cypress/screenshots
-          cypress/videos
+        path: public
         retention-days: 30
 
   pages:
@@ -169,7 +180,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: cypress-reports
-        path: cypress-reports
+        path: public
 
     - name: 🔧 Configuration de GitHub Pages
       uses: actions/configure-pages@v4
@@ -177,7 +188,7 @@ jobs:
     - name: 📤 Télécharger les Artefacts
       uses: actions/upload-pages-artifact@v3
       with:
-        path: cypress-reports
+        path: public
 
     - name: 🚀 Déployer sur GitHub Pages
       id: deployment
