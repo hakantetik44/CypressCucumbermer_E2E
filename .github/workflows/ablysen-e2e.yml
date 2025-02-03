@@ -47,6 +47,11 @@ jobs:
         npm install @bahmutov/cypress-esbuild-preprocessor@2.2.0 
         npm install multiple-cucumber-html-reporter@3.6.1
         npm install cucumber-html-reporter
+        npm install mocha@10.2.0
+        npm install mochawesome@7.1.3
+        npm install mochawesome-merge@4.3.0
+        npm install mochawesome-report-generator@6.2.0
+        npm install cypress-multi-reporters@1.6.3
         npx cypress verify
 
     - name: 🌐 Installer Chrome
@@ -65,13 +70,20 @@ jobs:
           "screenshotOnRunFailure": true,
           "reporter": "cypress-multi-reporters",
           "reporterOptions": {
-            "reporterEnabled": "mochawesome",
+            "reporterEnabled": "mochawesome, mocha-junit-reporter",
             "mochawesomeReporterOptions": {
               "reportDir": "cypress/reports/mocha",
               "quite": true,
               "overwrite": false,
-              "html": false,
+              "html": true,
               "json": true
+            }
+          },
+          "env": {
+            "TAGS": "not @ignore",
+            "cucumber-json": {
+              "enabled": true,
+              "output": "cypress/reports/cucumber/cucumber-report.json"
             }
           }
         }' > cypress.json
@@ -81,12 +93,23 @@ jobs:
         echo "Heure de début des tests: $(date '+%Y-%m-%d %H:%M:%S')"
         mkdir -p cypress/reports/json
         mkdir -p cypress/reports/cucumber
-        CYPRESS_REPORT_DIR=cypress/reports/cucumber npx cypress run --browser chrome --reporter cypress-cucumber-preprocessor/reporter
+        mkdir -p cypress/reports/mocha
+        CYPRESS_REPORT_DIR=cypress/reports/cucumber npx cypress run --browser chrome --reporter cypress-multi-reporters
+        
+        # Fusionner les rapports Mocha
+        npx mochawesome-merge cypress/reports/mocha/*.json > cypress/reports/mocha/output.json
+        npx marge cypress/reports/mocha/output.json --reportDir cypress/reports/mocha --inline
+
+        # Copier le rapport Cucumber JSON
+        if [ -f cypress/cucumber-messages.ndjson ]; then
+          cat cypress/cucumber-messages.ndjson | npx @cucumber/json-formatter > cypress/reports/cucumber/cucumber-report.json
+        fi
       continue-on-error: true
 
-    - name: 📊 Générer le Rapport Cucumber
+    - name: 📊 Générer les Rapports
       if: always()
       run: |
+        # Générer le rapport Cucumber HTML
         echo 'const reporter = require("cucumber-html-reporter");
         const options = {
           theme: "bootstrap",
@@ -104,7 +127,13 @@ jobs:
           }
         };
         reporter.generate(options);' > cucumber-report.js
-        node cucumber-report.js
+        
+        if [ -f cypress/reports/cucumber/cucumber-report.json ]; then
+          node cucumber-report.js
+        else
+          echo "Aucun rapport Cucumber JSON trouvé"
+          cp cypress/reports/mocha/output.html cypress/reports/cucumber/cucumber-report.html
+        fi
 
     - name: 📊 Télécharger les Rapports de Test
       if: always()
@@ -113,6 +142,7 @@ jobs:
         name: cypress-reports
         path: |
           cypress/reports/cucumber
+          cypress/reports/mocha
           cypress/screenshots
           cypress/videos
         retention-days: 30
@@ -137,7 +167,11 @@ jobs:
     - name: 📝 Créer index.html
       run: |
         mkdir -p cypress-reports
-        cp cypress-reports/cucumber/cucumber-report.html cypress-reports/index.html
+        if [ -f cypress-reports/cucumber/cucumber-report.html ]; then
+          cp cypress-reports/cucumber/cucumber-report.html cypress-reports/index.html
+        else
+          cp cypress-reports/mocha/output.html cypress-reports/index.html
+        fi
 
     - name: 🔧 Configuration de GitHub Pages
       uses: actions/configure-pages@v4
